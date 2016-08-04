@@ -5,6 +5,7 @@
         var c = $.extend({
             imageContainerID: $(this).attr("id"), //上传点击按钮ID
             imageList: "",  //存放图片容器ID
+            upDndID: "",//拖拽的容器，注意：此值不能等于imageContainerID
             deleteImagePathId: "", //被删除的正式图片存放
             fileType: "",  //图片类别
             newImagePathHiddenId: "",//新图片路径存放，为空时不做处理,没有预加载可用此种
@@ -15,7 +16,7 @@
             minImageCount: 0,//最小数量,点击上传的时候使用
             maxImageCount: 30,
             fileSingleSizeLimit: 1,//单个文件大小m
-            serverUrl: "../Ashx/WebUploaderFileOrImage.ashx"
+            serverUrl: "../ashx/WebUploaderFileOrImage.ashx"
         }, options);
         UpImage(c);
         LoadingImage(c);
@@ -38,7 +39,8 @@
         },
         ImageJsonData = {
             //除了删除之外的图片存放
-        };
+        }
+        upDndID = c.upDndID == "" ? "" : "#" + c.upDndID;
         c.thumbnailWidth = c.thumbnailWidth * ratio;
         c.thumbnailHeight = c.thumbnailWidth * ratio;
         // 缩略图大小
@@ -62,9 +64,28 @@
                 title: 'Images',
                 extensions: 'gif,jpg,jpeg,bmp,png',
                 mimeTypes: 'image/*'
-            }
+            },
+            dnd: upDndID,// [可选] [默认值：undefined]指定Drag And Drop拖拽的容器，如果不指定，则不启动。
+            disableGlobalDnd: true
         });
+        // 拖拽时不接受 js, txt 文件。阻止此事件可以拒绝某些类型的文件拖入进来。
+        uploader.on('dndAccept', function (items) {
+            var denied = false,
+                len = items.length,
+                i = 0,
+                // 修改js类型
+                unAllowed = 'text/plain;application/javascript ';
 
+            for (; i < len; i++) {
+                // 如果在列表里面
+                if (~unAllowed.indexOf(items[i].type)) {
+                    denied = true;
+                    break;
+                }
+            }
+
+            return !denied;
+        });
         //用户的操作超出限制
         uploader.on('error', function (handler) {
             switch (handler) {
@@ -152,7 +173,8 @@
                     type: '.' + file.ext,
                     extension: '.' + file.ext,
                     mimetype: file.type,
-                    filePath: response.filePath
+                    filePath: response.filePath,
+                    IsCopy: 1
                 };
                 newImageJsonData.fileList.push(fileEvent)
                 $("#" + c.newImagePathHiddenId).val(JSON.stringify((newImageJsonData)));
@@ -166,9 +188,10 @@
                             queueId: file.id,
                             name: file.name,
                             size: file.size,
-                            type: '.' + file.ext,
+                            extension: '.' + file.ext,
                             mimetype: file.type,
-                            filePath: response.filePath
+                            filePath: response.filePath,
+                            IsCopy: 1
                         };
                         item.push(fileEvent);
                         $("#" + c.imagePathHiddenId).val(JSON.stringify((ImageJsonData)));

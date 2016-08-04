@@ -10,6 +10,7 @@
         //1.Settings 初始化设置 
         var c = $.extend({
             fileContainerID: $(this).attr("id"),//文件的存放ID
+            upDndID: "",//拖拽容器id,注意此id不能是fileContainerID
             fileType: "",//文件类型，区分是什么类型的文件
             deleteFilePathID: "", // 被删除的正式文件的路径存放元素id
             newFilePathHiddenId: "",//新文件路径存放，为空时不做处理,没有预加载可用此种
@@ -20,7 +21,7 @@
             fileSingleSizeLimit: 5,//单个文件的最大m
             postbackHold: false,
             showDownload: false,
-            serverUrl: '../Ashx/WebUploaderImage.ashx'
+            serverUrl: '../ashx/WebUploaderImage.ashx'
         }, options);
         WebUpLoaderFile(c);
         LoadingFile(c);
@@ -58,7 +59,8 @@
              },
              fileJsonData = {
                  //除了删除之外的文件存放
-             };
+             },
+             upDndID = c.upDndID == "" ? "" : "#" + c.upDndID;;
         this.$list = $list;
 
         // 实例化
@@ -86,8 +88,29 @@
             resize: false,
             fileNumLimit: c.fileNumLimit, //文件总的个数
             fileSizeLimit: 1024 * 1024 * c.fileSizeLimit,    // 文件总大小
-            fileSingleSizeLimit: 1024 * 1024 * c.fileSingleSizeLimit//单个文件的大小
+            fileSingleSizeLimit: 1024 * 1024 * c.fileSingleSizeLimit,//单个文件的大小
+            dnd: upDndID,// [可选] [默认值：undefined]指定Drag And Drop拖拽的容器，如果不指定，则不启动。
+            disableGlobalDnd: true
         });
+        // 拖拽时不接受 js, txt 文件。阻止此事件可以拒绝某些类型的文件拖入进来。
+        uploader.on('dndAccept', function (items) {
+            var denied = false,
+                len = items.length,
+                i = 0,
+                // 修改js类型
+                unAllowed = 'text/plain;application/javascript ';
+
+            for (; i < len; i++) {
+                // 如果在列表里面
+                if (~unAllowed.indexOf(items[i].type)) {
+                    denied = true;
+                    break;
+                }
+            }
+
+            return !denied;
+        });
+
         // 文件添加进来只前的时候
         uploader.on('beforeFileQueued', function (file) {
             var fileCountIsMax = false, fileTypeErr = false;
@@ -174,10 +197,10 @@
                     queueId: file.id,
                     name: file.name,
                     size: file.size,
-                    type: '.' + file.ext,
                     extension: '.' + file.ext,
                     mimetype: file.type,
-                    filePath: response.filePath
+                    filePath: response.filePath,
+                    IsCopy: 1
                 };
                 newFileJsonData.fileList.push(fileEvent)
                 $("#" + c.newFilePathHiddenId).val(JSON.stringify((newFileJsonData)));
